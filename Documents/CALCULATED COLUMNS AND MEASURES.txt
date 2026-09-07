@@ -1,0 +1,115 @@
+CALCULATED COLUMNS
+
+0. FilterCity = 
+VAR val = dim_customer[city]
+VAR wordCount = LEN(val) - LEN(SUBSTITUTE(val, " ", "")) + 1
+RETURN
+IF(
+    ISBLANK(val) || wordCount > 4 || LEN(val) > 50,
+    BLANK(),
+    val
+)
+
+1. In Restaurants
+
+Cost Bucket =
+SWITCH(
+    TRUE(),
+    dim_restro[CostForTwo] < 500, "Budget",
+    dim_restro[CostForTwo] < 1000, "Mid Range",
+    "Premium"
+)
+
+
+Rating Bucket =
+SWITCH(
+    TRUE(),
+    dim_restro[Rating] >= 4.5, "Excellent",
+    dim_restro[Rating] >= 4.0, "Good",
+    dim_restro[Rating] >= 3.0, "Average",
+    "Low"
+)
+
+
+2. In Orders
+
+
+Delivery Status =
+IF(fact_order[DeliveryTimeMins] > 45, "Late", "On Time")
+
+
+
+Order Month = FORMAT(fact_order[OrderDate], "MMM YYYY")
+
+
+CORE MEASURES
+
+
+1. KPI measures
+
+Total Orders = COUNT(fact_order[OrderID])
+
+Total Revenue = SUM(fact_order[OrderValue])
+
+Avg Order Value = DIVIDE([Total Revenue], [Total Orders])
+
+Avg Delivery Time = AVERAGE(fact_order[DeliveryTimeMins])
+
+Total Customers = DISTINCTCOUNT(fact_order[CustomerID])
+
+Total Restaurants = DISTINCTCOUNT(dim_restro[RestaurantID])
+
+
+
+2. Status measures
+
+Delivered Orders =
+CALCULATE([Total Orders], fact_order[OrderStatus] = "Delivered")
+
+Cancelled Orders =
+CALCULATE([Total Orders], fact_order[OrderStatus] = "Cancelled")
+
+Cancellation % =
+DIVIDE([Cancelled Orders], [Total Orders])
+
+Late Orders =
+CALCULATE([Total Orders], fact_order[Delivery Status] = "Late")
+
+Late Delivery % =
+DIVIDE([Late Orders], [Total Orders])
+
+
+3. Customer measures
+
+Repeat Customers =
+CALCULATE(COUNTROWS(dim_customer),dim_customer[CustomerType] IN {"Premium", "Returning"})
+
+
+Repeat Customer % =
+DIVIDE([Repeat Customers], [Total Customers])
+
+Orders Per Customer =
+DIVIDE([Total Orders], [Total Customers])
+
+
+4. Restaurant performance measures
+
+Revenue per Restaurant =
+DIVIDE([Total Revenue], [Total Restaurants])
+
+Avg Rating = AVERAGE(dim_restro[Rating])
+
+Avg Votes = AVERAGE(dim_restro[Votes])
+
+
+5. Time intelligence measures
+
+Revenue YTD = TOTALYTD([Total Revenue], dim_datetable[Date])
+
+Orders YTD = TOTALYTD([Total Orders], dim_datetable[Date])
+
+Revenue Previous Month =
+CALCULATE([Total Revenue], DATEADD(dim_datetable[Date], -1, MONTH))
+
+Revenue Growth % =
+DIVIDE([Total Revenue] - [Revenue Previous Month], [Revenue Previous Month])
